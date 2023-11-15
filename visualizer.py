@@ -4,6 +4,86 @@ import math
 from matplotlib.colors import ListedColormap
 
 
+
+
+def get_lineage_pos(G):
+    pos = {}
+    cells = list(G.nodes())
+    cells.sort()
+
+    left_pos = 0
+    for cell in cells:
+        if cell not in pos:
+            make_pos(G, cell, pos, left_pos, 1)
+            left_pos += 1
+    return pos
+
+
+def make_pos(G, node, pos, left_pos, width):
+   pos[node] = (left_pos + width/2, -1 * node.frame)
+   children_nodes =  list(G.successors(node))
+   children_nodes.sort()
+   if len(children_nodes) == 0 : return 
+   slice_width = width / len(children_nodes)
+   for i in range(len(children_nodes)):
+      node = children_nodes[i]
+      make_pos(G, node, pos, left_pos + i * slice_width, slice_width)
+
+
+
+def tag_type(G):
+    tag_dict = {"death": set(), "birth": set(), "split": set(), "merge":set()}     
+    cells = G.nodes()
+    for cell in cells:
+        outgoing = len(list(G.successors(cell)))
+        incoming = len(list(G.predecessors(cell)))
+        if outgoing == 0 and incoming > 0:
+            tag_dict["death"].add(cell)
+        elif incoming == 0 and outgoing > 0:
+            tag_dict["birth"].add(cell)
+        
+        if incoming > 1:
+            # merge
+            edges = G.in_edges(cell)
+            tag_dict["merge"].update(set(edges))
+        if outgoing > 1 :
+            # split
+            edges = G.out_edges(cell)
+            tag_dict["split"].update(set(edges))
+    return tag_dict
+
+
+
+def mark_cell_style(G,tag_dict):
+    
+    node_colors = {}
+    node_sizes = {}
+    edge_colors = {}
+
+    # Make default node style
+    for cell in G.nodes():
+        node_colors[cell] = "black"
+        node_sizes[cell] = 0
+    # Make default edge style
+    for edge in G.edges():
+        edge_colors[edge] = "grey"
+    # Make special cell style
+    for cell in tag_dict["death"]:
+        node_colors[cell] = "grey"
+        node_sizes[cell] = 20
+    for cell in tag_dict["birth"]:
+        node_colors[cell] = "blue"
+        node_sizes[cell] = 20
+    # Make special edge style
+    for edge in tag_dict["merge"]:
+        edge_colors[edge] = "red"
+    for edge in tag_dict["split"]:   
+        edge_colors[edge] = "blue"
+
+    return node_colors, node_sizes, edge_colors
+
+# Rest are pure visiualize related code, with styling stuff 
+
 def crop_to_square_bounding_box(mask, label_value, padding=0):
     # Find the coordinates of the mask where the value equals label_value
     y_indices, x_indices = np.where(mask == label_value)
@@ -70,3 +150,6 @@ def plot_error_masks(mask, error):
 
     plt.tight_layout()
     plt.show()
+
+
+
