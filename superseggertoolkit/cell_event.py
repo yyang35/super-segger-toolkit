@@ -17,7 +17,9 @@ class CellEvent(Enum):
 
 
 # more general cellEvent idea 
-# this is used to label image/video 
+# this is used to label cells on image/video 
+# since merge and split consider edge behvaior other than node, so this type extend
+# edge behavior to node 
 class CellType(Enum):
     BIRTH = CellEvent.BIRTH
     DIE = CellEvent.DIE
@@ -38,7 +40,6 @@ class CellDefine:
         self.cell = cell
         outgoing = len(list(G.successors(cell)))
         incoming = len(list(G.predecessors(cell)))
-
         # notice no more logic constained on split and merge 
         # Split and merge not conflict with each other, this dependednt on which direction of time you look for 
         # Split/merge not conflict with birth/die also
@@ -48,10 +49,9 @@ class CellDefine:
         self.birth = (incoming == 0) and (outgoing > 0)
         self.die = (outgoing == 0) and (incoming > 0)
 
-        self.stary =  (incoming == 0) and (outgoing == 0) 
-
+        self.ghost =  (incoming == 0) and (outgoing == 0) 
         self.regular = (outgoing == 1) and (incoming == 1)
 
     def __str__(self):
-        return f"{self.cell}: split:{self.split}, merge:{self.merge}, birth:{self.birth}, die:{self.die}, regular:{self.regular}"
+        return f"{self.cell}: split:{self.split}, merge:{self.merge}, birth:{self.birth}, die:{self.die}, regular:{self.regular}, self.stray:{self.stary}"
     

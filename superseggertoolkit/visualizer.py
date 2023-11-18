@@ -8,7 +8,7 @@ import cv2
 import os
 import matplotlib.patches as patches
 import glob
-from link_reader import LinkReader
+from superseggertoolkit.link_composer import LinkComposer
 import networkx as nx
 import matplotlib.ticker as ticker
 
@@ -36,7 +36,8 @@ CELL_TYPE_COLOR = {
 
 # ===================lineage related ==================================== #
 
-# preparation lineage, get each node's location
+# get each node lineage's position, get each node's location
+# cells set input used for reasonable pos depending on specifc set, could use for      
 def get_lineage_pos(G, cells = None):
     pos = {}
     cells = list(G.nodes()) if cells is None else cells
@@ -84,73 +85,66 @@ def tag_type(G):
     return tag_dict
 
 
+# This plot lineage make some default highlight infomation on lineage: include cell events and basically statstic information
+def quick_lineage(G):
+    tag = tag_type(G)
+    pos = get_lineage_pos(G)
+
+    node_special = {CELL_EVENT_COLOR[CellEvent.BIRTH]: tag[CellEvent.BIRTH], CELL_EVENT_COLOR[CellEvent.DIE]: tag[CellEvent.DIE]}
+    edge_special = {CELL_EVENT_COLOR[CellEvent.SPLIT]: tag[CellEvent.SPLIT], CELL_EVENT_COLOR[CellEvent.MERGE]: tag[CellEvent.MERGE]}
+
+    plot_lineage(G, pos, with_background = True , nodes_special = node_special, edges_special = edge_special)
+
+
+# 
 def plot_lineage(G, pos, with_background, nodes_special = None, edges_special = None, show_stat = True, figsize = (15,12), arrow = False):
     fig, ax = plt.subplots(figsize=figsize)
-
-    node_list = list(G.nodes())
-    node_list.sort()
-
-    # draw background
-    if with_background: 
-        nx.draw(G, pos, node_size = 0,  width=1, edge_color="grey", arrows = arrow, ax=ax)
-    if nodes_special != None:
-        for color, nodes in nodes_special.items():
-            nx.draw_networkx_nodes(G, pos, nodelist=list(nodes), node_size=20, node_color=color, ax=ax)
-        for color, edges in edges_special.items():
-            nx.draw_networkx_edges(G, pos, edgelist=edges , width=1, edge_color=color, arrows= arrow, ax=ax)
-
-    # Styling stuff below
-    ax.set_frame_on(False)
-    ax.tick_params(left=True, bottom=False, labelleft=True, labelbottom=False)
-    #ax.set_yticks(np.arange(0, -1 * (node_list[-1].frame + 5) , step=-5))
-
-    limits=plt.axis('on')
-    if show_stat:
-        text = get_graph_stats_text(G)
-        ax.text(0.95, 0.95,  text, transform=ax.transAxes, horizontalalignment='right', verticalalignment='top')
-        
-    ax.grid(True, linestyle='--', alpha=0.5)
-    
+    ax =  subplot_lineage(ax, G, pos, with_background, nodes_special, edges_special, show_stat, figsize, arrow)
     plt.show()
 
 
-def sub_plot_lineage(ax, G, pos, with_background = False, nodes_special = None, edges_special = None, show_stat = True, figsize = (15,12), arrow = False):
+# plot lineage on a ax, this be factor out for any use of subplot, 
+def subplot_lineage(ax, G, pos, with_background = False, nodes_special = None, edges_special = None, show_stat = True, figsize = (15,12), arrow = False):
     node_list = list(G.nodes())
     node_list.sort()
 
     # draw background
     if with_background: 
         nx.draw(G, pos, node_size = 0,  width=1, edge_color="grey", arrows = arrow, ax=ax)
+    # draw special nodes, and edges that need be highlight
     if nodes_special != None:
         for color, nodes in nodes_special.items():
             nx.draw_networkx_nodes(G, pos, nodelist=list(nodes), node_size=20, node_color=color, ax=ax)
         for color, edges in edges_special.items():
             nx.draw_networkx_edges(G, pos, edgelist=edges , width=2, edge_color=color, arrows= arrow, ax=ax)
+    # show statstic infomation 
+    if show_stat:
+        text = get_graph_stats_text(G)
+        ax.text(0.95, 0.95,  text, transform=ax.transAxes, horizontalalignment='right', verticalalignment='top')
 
-    # Styling stuff below
+    # styling below
     ax.set_frame_on(False)
     ax.tick_params(left=True, bottom=False, labelleft=True, labelbottom=False)
-    #ax.set_yticks(np.arange(0, -1 * (node_list[-1].frame + 5) , step=-5))
 
-    def format_fn(tick_val):
-        return f"frame {int(abs(tick_val))}" if tick_val.is_integer() else ""
+    def format_fn(tick_val, tick_pos):
+        return f"frame {int(abs(tick_val))}" if tick_val % 1 == 0 else ""
 
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(format_fn))
 
     limits=plt.axis('on')
-    if show_stat:
-        text = get_graph_stats_text(G)
-        ax.text(0.95, 0.95,  text, transform=ax.transAxes, horizontalalignment='right', verticalalignment='top')
-        
     ax.grid(True, linestyle='--', alpha=0.5)
 
     return ax
 
 
-def get_lineage_info_for_single_frame(G, frame, tag = None):
-    reader = LinkReader(G.nodes())
 
-    cells_center = reader.cells_frame_dict[frame]
+
+# function decide what to show on lineage slice for each frame
+# extract all the node appear on this frame, get all edges/nodes it connected to
+def get_single_frame_lineage_info(G, frame, tag = None):
+    composer = LinkComposer(G.nodes())
+
+    cells_center = composer.cells_frame_dict[frame]
     cell_s = {"red": cells_center}
 
     connected_edges = set()
@@ -192,17 +186,17 @@ def get_lineage_info_for_single_frame(G, frame, tag = None):
     return  cell_s, edge_s, pos
 
 
-
+# 
 def get_graph_stats_text(G):
 
-    reader = LinkReader(G.nodes())
-    max_frame = reader.frame_num - 1
+    composer = LinkComposer(G.nodes())
+    max_frame = composer.frame_num - 1
 
     merge = 0
     split = 0
     birth = 0
     death = 0 
-    stary = 0 
+    ghost = 0 
     irregular_death = 0
 
     cells = set(G.nodes())
@@ -213,25 +207,25 @@ def get_graph_stats_text(G):
         split += define.split
         birth += define.birth
         death += define.die
-        stary += define.stary
+        ghost += define.ghost
         if define.die and cell.frame != max_frame:
             irregular_death += 1
 
-    coverage_rate = (len(reader.cells) - stary) / len(reader.cells)
-    frame_index = sorted(reader.cells_frame_dict)
-    last_frame_cells = reader.cells_frame_dict[frame_index[-1]]
+    coverage_rate = (len(composer.cells) - stary) / len(composer.cells)
+    frame_index = sorted(composer.cells_frame_dict)
+    last_frame_cells = composer.cells_frame_dict[frame_index[-1]]
     cell_num = len(last_frame_cells)
-    text = f"Max frame: {max_frame} \n Coverage rate : {coverage_rate:.0%} \n  last frame cell num:{cell_num} \n  Merge: {merge}, split: {split}, birth:{birth}, death: {death} \n stary: {stary},irregular death: {irregular_death}"
+    text = f"Max frame: {max_frame} \n Coverage rate : {coverage_rate:.0%} \n  last frame cell num:{cell_num} \n  Merge: {merge}, split: {split}, birth:{birth}, death: {death} \n  ghost: { ghost},irregular death: {irregular_death}"
     return text
 
 
 
-# ===================video related ==================================== #
+# ======================== video related ==================================== #
 
 # for images visualization, label the cell label and it's type 
 # this cell label only for reability and represent relative relationship, no strict label be applied
-def get_label_info(G, alphabet_label = False):
-    cells = list(G.nodes())
+def get_label_info(G, cells = None, alphabet_label = False):
+    cells = list(G.nodes()) if cells == None else cells
     cells.sort()
 
     max_frame = cells[-1].frame 
@@ -276,12 +270,13 @@ def get_label_info(G, alphabet_label = False):
                     cell_list.sort()
                     for i in range(len(cell_list)):
                         outgoing_cell = cell_list[i]
+                        # give a label 
                         label = get_new_label() if not alphabet_label else info[mother][0] + str(i)
                         info[outgoing_cell] = (label,CellType.SPLITED)
                 elif define.merge:
                     # label itself
                     label = get_new_label()
-                    info[cell] = (label ,CellType.MERGE)
+                    info[cell] = (label, CellType.MERGE)
                     # label it's incoming cells 
                     cell_list = list(G.predecessors(cell))
                     cell_list.sort()
@@ -289,7 +284,7 @@ def get_label_info(G, alphabet_label = False):
                         income_cell = cell_list[i]
                         assert income_cell in info, "the cell frame before current cell haven't be labeled"
                         label = info[cell][0]+ str(i) if alphabet_label else info[income_cell][0]
-                        info[cell] = (label,CellType.MERGED)         
+                        info[income_cell] = (label,CellType.MERGED)         
 
     return info
 
@@ -300,7 +295,7 @@ def get_single_track_visualization(G,base_dir, info, circle_label = False, repre
     video_dir = os.path.join(base_dir, "video")
     os.makedirs(video_dir, exist_ok=True)
 
-    reader = LinkReader(set(G.nodes()))
+    composer = LinkComposer(set(G.nodes()))
     # found all initial images.
     filename = "*.tif"
     file_path = os.path.join(base_dir, filename)
@@ -318,7 +313,7 @@ def get_single_track_visualization(G,base_dir, info, circle_label = False, repre
         # Create a new figure and axis
         fig, ax = plt.subplots()
 
-        ax = get_single_frame_visualization(ax, image, reader.cells_frame_dict, info, frame, circle_label, representative_point)
+        ax = get_single_frame_visualization(ax, image, composer.cells_frame_dict, info, frame, circle_label, representative_point)
         
         plt.axis('off')
         plt.tight_layout()

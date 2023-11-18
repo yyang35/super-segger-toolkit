@@ -1,6 +1,14 @@
 import numpy as np
 import pandas as pd
 
+
+
+
+# this function is not useful after change approach from assignment matrix of labels to graph of 'Cell' class
+# this function be delete once be proved useless
+
+"""
+
 def compare_single_frame_matrix(matrix1, matrix2):
     # Determine the common shape
     common_shape = (min(matrix1.shape[0], matrix2.shape[0]), 
@@ -61,4 +69,4 @@ def compare_multiple_result(dict_of_multiple_assignment_dict, reference_dict):
     return pd.DataFrame(master_dict)
 
 
-
+"""
