@@ -36,6 +36,7 @@ def get_omnipose_mask_dict(foldername: str):
     return mask_dict
 
 
+
 # general mask reader which sort file by nature order
 # check natsorted for more info 
 def get_mask_dict(foldername: str):
@@ -92,61 +93,3 @@ def single_cell_mask_to_polygon(cell_mask):
     polygons = [Polygon(contour.reshape(-1, 2)) for contour in contours]
     assert len(polygons) == 1 , "Disconnected multi-pieces found on single mask/cell label"
     return polygons[0]
-
-
-
-
-"""
-# this function is not useful after change approach from assignment matrix of labels to graph of 'Cell' class
-# this function be delete once be proved useless
-def mask_matrix_to_ploygon_list(mask, threshold = 0):
-    frame_dict={}
-    for i in range(1,np.max(mask)+1):
-        if np.sum(mask == i) > threshold:
-            cell_mask = mask == i 
-            polygon = single_cell_mask_to_polygon(cell_mask)
-            frame_dict[i] = polygon
-    
-    return frame_dict
-
-
-
-# this function is not useful after change approach from assignment matrix of labels to graph of 'Cell' class
-# this function be delete once be proved useless
-def get_cell_info_by_mask(labels_mask):
-    label_info_df = pd.DataFrame(columns = ['label', 'x_mean', 'y_mean', 'area'])
-    regs_label = labels_mask
-    for i in range(1,np.max(regs_label)+1):
-        row_indices, col_indices = np.where(regs_label == i)
-        if len(row_indices) > 0:
-            new_row = {'label': i, 'x_mean': np.average(col_indices), 'y_mean': np.average(row_indices), 'area': len(row_indices)}
-            label_info_df.loc[len(label_info_df)] = new_row
-
-    return label_info_df
-
-
-
-# this function is not useful after change approach from assignment matrix of labels to graph of 'Cell' class
-# this function be delete once be proved useless
-def get_cell_info_by_ploygon(frame_polygons_dict):
-    label_info_df = pd.DataFrame(columns = ['label', 'x_mean', 'y_mean', 'area'])
-    for key, value in frame_polygons_dict.items():
-        # value should in Shaply polygon class
-        new_row = {'label': key, 'x_mean': value.centroid.x, 'y_mean': value., 'area':value.area}
-        label_info_df.loc[len(label_info_df)] = new_row
-
-    return label_info_df
-
-
-
-# this function is not useful after change approach from assignment matrix of labels to graph of 'Cell' class
-# this function be delete once be proved useless
-def get_polygon_2d_dict(filename: str, threshold = 5):
-    mask_dict = get_omnipose_mask_dict(filename)
-    polygons_dict = {}
-    for key, mask in mask_dict.items():
-        polygons_dict[key]= mask_matrix_to_ploygon_list(mask, threshold=threshold)
-
-    return polygons_dict
-
-"""

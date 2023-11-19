@@ -8,12 +8,17 @@ import cv2
 import os
 import matplotlib.patches as patches
 import glob
-from superseggertoolkit.link_composer import LinkComposer
 import networkx as nx
 import matplotlib.ticker as ticker
+from typing import Set
 
+from cell import Cell
 from cell_event import CellEvent, CellType, CellDefine
+from link_composer import LinkComposer
 
+
+
+# =========================  color styling constant ================================ #
 
 CELL_EVENT_COLOR = {
     CellEvent.SPLIT:"blue", 
@@ -21,6 +26,7 @@ CELL_EVENT_COLOR = {
     CellEvent.DIE:"red", 
     CellEvent.BIRTH: "purple"
 }
+
 
 CELL_TYPE_COLOR = {
     CellType.REGULAR: "#878787", 
@@ -34,15 +40,16 @@ CELL_TYPE_COLOR = {
 }
 
 
-# ===================lineage related ==================================== #
+# ============================ lineage related ====================================== #
 
 # get each node lineage's position, get each node's location
-# cells set input used for reasonable pos depending on specifc set, could use for      
-def get_lineage_pos(G, cells = None):
-    pos = {}
+# if input certain set of cells, position will be optimized depending on this specifc set.
+def get_lineage_pos(G: nx.Graph, cells: Set[Cell] = None):
+    
     cells = list(G.nodes()) if cells is None else cells
     cells.sort()
 
+    pos = {}
     left_pos = 0
     for cell in cells:
         if cell not in pos:
@@ -67,9 +74,9 @@ def make_pos(G, node, pos, left_pos, width):
 
 
 # for lineage, return a set of special edges and nodes, which used to shown overlap on normal lineage
-def tag_type(G):
+def tag_type(G, cells = None):
     tag_dict = {CellEvent.DIE: set(), CellEvent.BIRTH: set(), CellEvent.SPLIT: set(), CellEvent.MERGE:set()}     
-    cells = set(G.nodes())
+    cells = set(G.nodes()) if cells is None else cells
     for cell in cells:
         define = CellDefine(G, cell)
         # add special nodes:
@@ -86,21 +93,30 @@ def tag_type(G):
 
 
 # This plot lineage make some default highlight infomation on lineage: include cell events and basically statstic information
-def quick_lineage(G):
+def quick_lineage(G, globally = False, figsize = (10,8)):
     tag = tag_type(G)
-    pos = get_lineage_pos(G)
 
-    node_special = {CELL_EVENT_COLOR[CellEvent.BIRTH]: tag[CellEvent.BIRTH], CELL_EVENT_COLOR[CellEvent.DIE]: tag[CellEvent.DIE]}
-    edge_special = {CELL_EVENT_COLOR[CellEvent.SPLIT]: tag[CellEvent.SPLIT], CELL_EVENT_COLOR[CellEvent.MERGE]: tag[CellEvent.MERGE]}
+    defines = CellDefine.define_cells(G)
+    cells = [define.cell for define in defines if not define.ghost]
+    
+    pos = get_lineage_pos(G) if globally else get_lineage_pos(G, cells)
 
-    plot_lineage(G, pos, with_background = True , nodes_special = node_special, edges_special = edge_special)
+    edges = {"grey": G.edges()}
+    nodes = {"grey": set(G.nodes()).difference(cells)} if globally else {} 
+
+    nodes.update({CELL_EVENT_COLOR[CellEvent.BIRTH]: tag[CellEvent.BIRTH], CELL_EVENT_COLOR[CellEvent.DIE]: tag[CellEvent.DIE]})
+    edges.update({CELL_EVENT_COLOR[CellEvent.SPLIT]: tag[CellEvent.SPLIT], CELL_EVENT_COLOR[CellEvent.MERGE]: tag[CellEvent.MERGE]})
+
+    plot_lineage(G, pos, with_background = False , nodes_special = nodes, edges_special = edges, figsize = figsize)
 
 
-# 
+
+# master lineage function
 def plot_lineage(G, pos, with_background, nodes_special = None, edges_special = None, show_stat = True, figsize = (15,12), arrow = False):
     fig, ax = plt.subplots(figsize=figsize)
     ax =  subplot_lineage(ax, G, pos, with_background, nodes_special, edges_special, show_stat, figsize, arrow)
     plt.show()
+
 
 
 # plot lineage on a ax, this be factor out for any use of subplot, 
@@ -114,9 +130,9 @@ def subplot_lineage(ax, G, pos, with_background = False, nodes_special = None, e
     # draw special nodes, and edges that need be highlight
     if nodes_special != None:
         for color, nodes in nodes_special.items():
-            nx.draw_networkx_nodes(G, pos, nodelist=list(nodes), node_size=20, node_color=color, ax=ax)
+            nx.draw_networkx_nodes(G, pos, nodelist=list(nodes), node_size=15, node_color=color, ax=ax)
         for color, edges in edges_special.items():
-            nx.draw_networkx_edges(G, pos, edgelist=edges , width=2, edge_color=color, arrows= arrow, ax=ax)
+            nx.draw_networkx_edges(G, pos, edgelist=edges , width=1, edge_color=color, arrows= arrow, ax=ax)
     # show statstic infomation 
     if show_stat:
         text = get_graph_stats_text(G)
@@ -138,10 +154,9 @@ def subplot_lineage(ax, G, pos, with_background = False, nodes_special = None, e
 
 
 
-
 # function decide what to show on lineage slice for each frame
 # extract all the node appear on this frame, get all edges/nodes it connected to
-def get_single_frame_lineage_info(G, frame, tag = None):
+def get_single_frame_lineage_info(G, frame):
     composer = LinkComposer(G.nodes())
 
     cells_center = composer.cells_frame_dict[frame]
@@ -168,18 +183,14 @@ def get_single_frame_lineage_info(G, frame, tag = None):
     edge_s = {"grey": connected_edges}
     cell_s = {"grey": connected_nodes, "blue": cells_center}
 
-    if tag is not None:
-        edge_split = tag[CellEvent.SPLIT].intersection(connected_edges)
-        edge_merge = tag[CellEvent.MERGE].intersection(connected_edges)
+    all_cells = connected_nodes.union(cells_center)
+    tag = tag_type(G, all_cells)
 
-        node_birth = tag[CellEvent.BIRTH].intersection(connected_nodes.union(cells_center))
-        node_death = tag[CellEvent.DIE].intersection(connected_nodes.union(cells_center))
+    edge_s[CELL_EVENT_COLOR[CellEvent.SPLIT]] = tag[CellEvent.SPLIT]
+    edge_s[CELL_EVENT_COLOR[CellEvent.MERGE]] = tag[CellEvent.MERGE]
 
-        edge_s[CELL_EVENT_COLOR[CellEvent.SPLIT]] = edge_split
-        edge_s[CELL_EVENT_COLOR[CellEvent.MERGE]] = edge_merge
-
-        cell_s[CELL_EVENT_COLOR[CellEvent.BIRTH]] = node_birth 
-        cell_s[CELL_EVENT_COLOR[CellEvent.DIE]] = node_death
+    cell_s[CELL_EVENT_COLOR[CellEvent.BIRTH]] = tag[CellEvent.BIRTH]
+    cell_s[CELL_EVENT_COLOR[CellEvent.DIE]] = tag[CellEvent.DIE]
 
     pos = get_lineage_pos(G, list(connected_nodes.union(cells_center)))
 
@@ -192,35 +203,30 @@ def get_graph_stats_text(G):
     composer = LinkComposer(G.nodes())
     max_frame = composer.frame_num - 1
 
-    merge = 0
-    split = 0
-    birth = 0
-    death = 0 
-    ghost = 0 
-    irregular_death = 0
+    merge, split, birth, death, ghost, irregular_death = 0, 0, 0, 0, 0, 0
 
-    cells = set(G.nodes())
-
-    for cell in cells:
-        define = CellDefine(G,cell)
+    for cell in composer.cells:
+        define = CellDefine(G, cell)
         merge += define.merge
         split += define.split
         birth += define.birth
         death += define.die
         ghost += define.ghost
-        if define.die and cell.frame != max_frame:
-            irregular_death += 1
 
-    coverage_rate = (len(composer.cells) - stary) / len(composer.cells)
+    coverage_rate = (len(composer.cells) - ghost) / len(composer.cells)
     frame_index = sorted(composer.cells_frame_dict)
     last_frame_cells = composer.cells_frame_dict[frame_index[-1]]
     cell_num = len(last_frame_cells)
-    text = f"Max frame: {max_frame} \n Coverage rate : {coverage_rate:.0%} \n  last frame cell num:{cell_num} \n  Merge: {merge}, split: {split}, birth:{birth}, death: {death} \n  ghost: { ghost},irregular death: {irregular_death}"
+    text = f"""Max frame: {max_frame}
+            Coverage rate: {coverage_rate:.2%}
+            Last frame cell num: {cell_num}
+            Merge: {merge}, Split: {split}, Birth: {birth}, Death: {death}
+            Ghost: {ghost}, Irregular death: {irregular_death}"""
     return text
 
 
 
-# ======================== video related ==================================== #
+# ============================== fluorescent video stetch related ================================== #
 
 # for images visualization, label the cell label and it's type 
 # this cell label only for reability and represent relative relationship, no strict label be applied
@@ -396,7 +402,8 @@ def image_to_tif_sequence(images_folder):
 
 
 
-# ======================== plot error mask related ====================== #
+# ===================================== plot error mask related ===================================== #
+
 def crop_to_square_bounding_box(mask, label_value, padding=0):
     # Find the coordinates of the mask where the value equals label_value
     y_indices, x_indices = np.where(mask == label_value)

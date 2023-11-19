@@ -1,7 +1,8 @@
 from enum import Enum
 from networkx import Graph
 from cell import Cell
-
+from typing import Set
+from typing import Iterable
 
 
 # more strict cellEvent idea 
@@ -53,5 +54,17 @@ class CellDefine:
         self.regular = (outgoing == 1) and (incoming == 1)
 
     def __str__(self):
-        return f"{self.cell}: split:{self.split}, merge:{self.merge}, birth:{self.birth}, die:{self.die}, regular:{self.regular}, self.stray:{self.stary}"
+        return f"{self.cell}: split:{self.split}, merge:{self.merge}, birth:{self.birth}, die:{self.die}, regular:{self.regular}, self.ghost:{self.ghost}"
+    
+
+
+    @staticmethod
+    def define_cells(G: Graph, cells: Iterable[Cell] = None):
+        define_set = []
+        cells = set(G.nodes()) if cells is None else cells
+        for cell in cells:
+            define_set.append(CellDefine(G, cell))
+        return define_set
+    
+
     

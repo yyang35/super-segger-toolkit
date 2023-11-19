@@ -1,6 +1,5 @@
 from cell import Cell
 import pandas as pd
-from scipy.io import savemat
 import numpy as np
 import glob
 import os
@@ -11,7 +10,7 @@ from typing import Set
 import sys
 
 
-class LinkFactory:
+class LinkComposer:
 
 
 
@@ -40,6 +39,13 @@ class LinkFactory:
             G.add_node(cell)
 
         return G
+
+
+    
+    def link(self, G, cell1, cell2):
+        assert cell1 in self.cells, "source cell not in cells"
+        assert cell2 in self.cells, "target cell not in cells"
+        G.add_edge(cell1, cell2)
 
 
 
