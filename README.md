@@ -11,9 +11,9 @@ The main idea is to store the linking result as a Graph of Cells:
   - `self.node`
   - `self.edge: (node, node)`
 
+---
 The main data **resource manager, called LinkComposer**, stores phase/mask directories and cells set. It helps in quickly plotting information.
 
----
 ## Steps:
 1. Create a LinkComposer:
    - `LinkComposer.read_folder(mask_folder, phase_folder)`
@@ -25,15 +25,24 @@ The main data **resource manager, called LinkComposer**, stores phase/mask direc
      - `visualizer.get_label_info(G), composer.show_frame_phase(...)`
 5. Finished. Also, multiple linker comparisons can be done, if desired.
 
+   
+Read Demo for more information: 
+
 ---
 ## Visualization:
-Phase tracking videos:
-<p align="center">
-  <img src="https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/event_label.gif" alt="Image 1" width="200"/>
-  <img src="https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/generation_label.gif" alt="Image 2" width="200"/>
-  <img src="https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/warning_label.gif" alt="Image 3" width="200"/>
-</p>
-Lineage comparsion:
+**Phase tracking videos:**
+Cell Event Tracking Labeling:
+
+![Image 1](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/event_label.gif)
+
+Ancient/generation Labeling:
+![Image 2](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/generation_label.gif)
+
+Warning Error Labeling:
+![Image 3](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/warning_label.gif)
+
+**Lineage comparsion:**
 ![image](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/lineage_comparsion.png)
-Cross time phase video compasion:
+
+**Cross time phase video compasion:**
 ![image](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/phase_comparsion.png)
