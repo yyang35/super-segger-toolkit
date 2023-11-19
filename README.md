@@ -38,10 +38,10 @@ check different label demo for more information.
 
 Cell Event Tracking Labeling:
 check different label demo for more information.
-| | | |
-|:---:|:---:|:---:|
-| Cell Event Tracking Labeling | Generation/Ancient tracking Labeling | Warning Error Labeling |
-| ![Image 1](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/event_label.gif) | ![Image 2](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/generation_label.gif) | ![Image 3](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/warning_label.gif) |
+
+![Image 1](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/event_label.gif) 
+![Image 2](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/generation_label.gif) 
+![Image 3](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/warning_label.gif) 
 
 
 **Cross time phase video compasion:**
