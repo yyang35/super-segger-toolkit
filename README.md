@@ -46,7 +46,7 @@ check different label demo for more information.
 
 **Cross time phase video compasion:**
 Also, check demo visualization for more information
-![image](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/phase_comparsion.tif)
+![image](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/phase_comparsion.png)
 
 **Lineage comparsion:**
 Check demo visualization for more information, **this lineage is from falimented cells rather than above data**, since this data lineage is more interesting and falimented cells phase data more interesting, so using different data on different visualization. 
