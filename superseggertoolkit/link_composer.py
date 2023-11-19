@@ -105,25 +105,25 @@ class LinkComposer:
     
 
 
-    def show_frame_phase(self, G, frame, info = None, circle_label = False, representative_point = False, figsize = None):
+    def show_frame_phase(self, G, frame, info = None, **kwargs):
         import visualizer
         this_frame_cells = self.cells_frame_dict[frame]
         connected_cells,_  = visualizer.get_connected_edges_cells(G, this_frame_cells)
         info = visualizer.get_label_info(G, list(connected_cells.union(this_frame_cells)), alphabet_label=True) if info is None else info
+        image = self.get_single_frame_phase(frame)
+        return visualizer.plot_single_frame_phase(G, info, frame, image, cells_frame_dict=self.cells_frame_dict, **kwargs)
         
+    
+    def get_single_frame_phase(self, frame):
+        import visualizer
         if hasattr(self, 'phase_tif'):
-            image = visualizer.read_tiff_frame_like_cv2(self.phase_tif, frame)
+            image = cells_extractor.read_tiff_frame_like_cv2(self.phase_tif, frame)
         elif hasattr(self, 'phase_folder'):
-            files = glob.glob(self.phase_folder)
-            sorted_filenames = natsorted(files)
-            image = cv2.imread(sorted_filenames[frame])
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            image = cells_extractor.read_tiff_in_folder(self.phase_folder, frame)
         else: 
-            raise Exception("Composer don't have phase info, use visualizer.to plot")
+            raise Exception("Composer don't have phase info, use visualizer plot")
+        return image
         
-        return visualizer.plot_single_frame_phase(G, info, frame, image, cells_frame_dict=self.cells_frame_dict, circle_label = circle_label, representative_point = representative_point, figsize=figsize)
-        
-
 
 
     #=================== following are read link result file related function =================== #

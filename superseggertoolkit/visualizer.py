@@ -12,6 +12,8 @@ import networkx as nx
 import matplotlib.ticker as ticker
 from typing import Set
 from pathlib import Path
+import random
+import colorsys
 
 from cell import Cell
 from cell_event import CellEvent, CellType, CellDefine
@@ -58,7 +60,6 @@ def get_lineage_pos(G: nx.Graph, cells: Set[Cell] = None):
     return pos
 
 
-
 # helper function for get_lineage_pos
 # Deep Fist Search to label all horizontal position of each cell
 def make_pos(G, node, pos, left_pos, width):
@@ -93,7 +94,7 @@ def tag_type(G, cells = None):
 
 
 # This plot lineage make some default highlight infomation on lineage: include cell events and basically statstic information
-def quick_lineage(G, globally = False, figsize = (10,8)):
+def quick_lineage(G, globally = False, figsize = (10,8), **kwargs):
     tag = tag_type(G)
 
     defines = CellDefine.define_cells(G)
@@ -107,32 +108,37 @@ def quick_lineage(G, globally = False, figsize = (10,8)):
     nodes.update({CELL_EVENT_COLOR[CellEvent.BIRTH]: tag[CellEvent.BIRTH], CELL_EVENT_COLOR[CellEvent.DIE]: tag[CellEvent.DIE]})
     edges.update({CELL_EVENT_COLOR[CellEvent.SPLIT]: tag[CellEvent.SPLIT], CELL_EVENT_COLOR[CellEvent.MERGE]: tag[CellEvent.MERGE]})
 
-    plot_lineage(G, pos, with_background = False , nodes_special = nodes, edges_special = edges, figsize = figsize)
+    plot_lineage(G, pos, with_background = False , nodes_special = nodes, edges_special = edges, figsize = figsize,  **kwargs)
 
 
 
 # master lineage function
-def plot_lineage(G, pos, with_background, nodes_special = None, edges_special = None, show_stat = True, figsize = (15,12), arrow = False):
+def plot_lineage(G, pos, figsize = (15,12), **kwargs):
     fig, ax = plt.subplots(figsize=figsize)
-    ax =  subplot_lineage(ax, G, pos, with_background, nodes_special, edges_special, show_stat, figsize, arrow)
+    ax =  subplot_lineage(ax, G, pos, **kwargs)
     plt.show()
 
 
 
 # plot lineage on a ax, this be factor out for any use of subplot, 
-def subplot_lineage(ax, G, pos, with_background = False, nodes_special = None, edges_special = None, show_stat = True, figsize = (15,12), arrow = False):
+def subplot_lineage(ax, G, pos, **kwargs):
     node_list = list(G.nodes())
     node_list.sort()
 
+    with_background = kwargs.get('with_background', False)
+    nodes_special = kwargs.get('nodes_special', {})
+    edges_special = kwargs.get('edges_special', {})
+    show_stat = kwargs.get('show_stat', True)
+    arrow = kwargs.get('arrow', False)
+    
     # draw background
     if with_background: 
         nx.draw(G, pos, node_size = 0,  width=1, edge_color="grey", arrows = arrow, ax=ax)
     # draw special nodes, and edges that need be highlight
-    if nodes_special != None:
-        for color, nodes in nodes_special.items():
-            nx.draw_networkx_nodes(G, pos, nodelist=list(nodes), node_size=15, node_color=color, ax=ax)
-        for color, edges in edges_special.items():
-            nx.draw_networkx_edges(G, pos, edgelist=edges , width=1, edge_color=color, arrows= arrow, ax=ax)
+    for color, nodes in nodes_special.items():
+        nx.draw_networkx_nodes(G, pos, nodelist=list(nodes), node_size=15, node_color=color, ax=ax)
+    for color, edges in edges_special.items():
+        nx.draw_networkx_edges(G, pos, edgelist=edges , width=1, edge_color=color, arrows= arrow, ax=ax)
     # show statstic infomation 
     if show_stat:
         text = get_graph_stats_text(G)
@@ -162,13 +168,13 @@ def get_single_frame_lineage_info(G, frame):
     cells_center = composer.cells_frame_dict[frame]
     cell_s = {"red": cells_center}
 
-    connected_nodes, connected_edges = get_connected_edges_cells(cells_center)
+    connected_nodes, connected_edges = get_connected_edges_cells(G, cells_center)
     
     edge_s = {"grey": connected_edges}
     cell_s = {"grey": connected_nodes, "blue": cells_center}
 
     all_cells = connected_nodes.union(cells_center)
-    tag = tag_type(G, all_cells)
+    tag = tag_type(G, cells_center)
 
     edge_s[CELL_EVENT_COLOR[CellEvent.SPLIT]] = tag[CellEvent.SPLIT]
     edge_s[CELL_EVENT_COLOR[CellEvent.MERGE]] = tag[CellEvent.MERGE]
@@ -239,8 +245,8 @@ def get_graph_stats_text(G):
 
 # for images visualization, label the cell label and it's type 
 # this cell label only for reability and represent relative relationship, no strict label be applied
-def get_label_info(G, cells = None, alphabet_label = False):
-    cells = list(G.nodes()) if cells == None else cells
+def get_label_info(G):
+    cells = list(G.nodes())
     cells.sort()
 
     max_frame = cells[-1].frame 
@@ -248,14 +254,11 @@ def get_label_info(G, cells = None, alphabet_label = False):
     info = {}
     cell_id = 0
 
-    if alphabet_label:
-        alphabet = string.ascii_uppercase
-
     def get_new_label():
         nonlocal cell_id 
-        label = alphabet[cell_id % len(alphabet)] if alphabet_label else cell_id
         cell_id = cell_id + 1
-        return label
+        return cell_id
+
 
     for cell in cells:
         if cell not in info:
@@ -264,254 +267,175 @@ def get_label_info(G, cells = None, alphabet_label = False):
             # label birth/death, notice they are not conflict with merge/split
             # label birth/death first, so merge/split have higher priority, since will keep the label of latest asssigned
             if define.birth:
-                label = get_new_label()
-                info[cell] = (label, CellType.BIRTH)
-            elif define.die:
-                if mother not in info: continue
-                if cell.frame == max_frame:
-                    info[cell] = (info[mother][0],CellType.UNKOWN)
-                else:
-                    info[cell] = (info[mother][0],CellType.DIE)
+                info[cell] = (get_new_label(), CELL_TYPE_COLOR[CellType.BIRTH])
             elif define.ghost:
-                info[cell] = ("Ø", CellType.UNKOWN)
+                info[cell] = ("Ø", CELL_TYPE_COLOR[CellType.UNKOWN])
 
             # lable all other events. regular(1 to 1), split, and merge are parallel structure. 
             if incoming > 0:
                 mother = list(G.predecessors(cell))[0]
-                if mother not in info: continue
                 if define.regular: 
-                    info[cell] = (info[mother][0], CellType.REGULAR)
+                    info[cell] = (info[mother][0], CELL_TYPE_COLOR[CellType.REGULAR])
                 elif define.split:
                     # label itself 
-                    info[cell] = (info[mother][0], CellType.SPLIT)
+                    info[cell] = (info[mother][0], CELL_TYPE_COLOR[CellType.SPLIT])
                     # label it's outgoing cells 
                     cell_list = list(G.successors(cell))
                     cell_list.sort()
                     for i in range(len(cell_list)):
                         outgoing_cell = cell_list[i]
-                        # give a label 
-                        label = get_new_label() if not alphabet_label else info[mother][0] + str(i)
-                        info[outgoing_cell] = (label,CellType.SPLITED)
+                        info[outgoing_cell] = (get_new_label(), CELL_TYPE_COLOR[CellType.SPLITED])
                 elif define.merge:
                     # label itself
-                    label = get_new_label()
-                    info[cell] = (label, CellType.MERGE)
+                    info[cell] = (get_new_label(), CELL_TYPE_COLOR[CellType.MERGE])
                     # label it's incoming cells 
                     cell_list = list(G.predecessors(cell))
                     cell_list.sort()
                     for i in range(len(cell_list)):
                         income_cell = cell_list[i] 
-                        if income_cell not in info: continue
-                        label = info[cell][0]+ str(i) if alphabet_label else info[income_cell][0]
-                        info[income_cell] = (label,CellType.MERGED)         
+                        label = info[income_cell][0]
+                        info[income_cell] = (label,CELL_TYPE_COLOR[CellType.MERGED])       
+                elif define.die:
+                    if cell.frame == max_frame:
+                        info[cell] = (info[mother][0], CELL_TYPE_COLOR[CellType.UNKOWN])
+                    else:
+                        info[cell] = (info[mother][0], CELL_TYPE_COLOR[CellType.DIE])  
 
     return info
 
 
 
-def get_label_info(G, cells = None, alphabet_label = False):
-    cells = list(G.nodes()) if cells == None else cells
-    cells.sort()
+def get_edges_related_label_info(G, edges, color = "#FF7000"):
 
-    max_frame = cells[-1].frame 
+    cells = []
+    # Iterate over the edge set and add the nodes to cells
+    for node1, node2 in edges:
+        cells.append(node1)
+        cells.append(node2)
+
+    cells = list(cells)
+    cells.sort()
 
     info = {}
     cell_id = 0
-
-    if alphabet_label:
-        alphabet = string.ascii_uppercase
+    alphabet = string.ascii_letters
 
     def get_new_label():
         nonlocal cell_id 
-        label = alphabet[cell_id % len(alphabet)] if alphabet_label else cell_id
+        label = alphabet[cell_id % len(alphabet)]
         cell_id = cell_id + 1
         return label
 
     for cell in cells:
         if cell not in info:
-            define = CellDefine(G, cell)
-            incoming = len(list(G.predecessors(cell)))
-            # label birth/death, notice they are not conflict with merge/split
-            # label birth/death first, so merge/split have higher priority, since will keep the label of latest asssigned
-            if define.birth:
-                label = get_new_label()
-                info[cell] = (label, CellType.BIRTH)
-            elif define.die:
-                if mother not in info: continue
-                if cell.frame == max_frame:
-                    info[cell] = (info[mother][0],CellType.UNKOWN)
-                else:
-                    info[cell] = (info[mother][0],CellType.DIE)
-            elif define.ghost:
-                info[cell] = ("Ø", CellType.UNKOWN)
+            incoming = list(G.predecessors(cell))
 
-            # lable all other events. regular(1 to 1), split, and merge are parallel structure. 
-            if incoming > 0:
-                mother = list(G.predecessors(cell))[0]
-                if mother not in info: continue
-                if define.regular: 
-                    info[cell] = (info[mother][0], CellType.REGULAR)
-                elif define.split:
-                    # label itself 
-                    info[cell] = (info[mother][0], CellType.SPLIT)
-                    # label it's outgoing cells 
-                    cell_list = list(G.successors(cell))
-                    cell_list.sort()
-                    for i in range(len(cell_list)):
-                        outgoing_cell = cell_list[i]
-                        # give a label 
-                        label = get_new_label() if not alphabet_label else info[mother][0] + str(i)
-                        info[outgoing_cell] = (label,CellType.SPLITED)
-                elif define.merge:
-                    # label itself
-                    label = get_new_label()
-                    info[cell] = (label, CellType.MERGE)
-                    # label it's incoming cells 
-                    cell_list = list(G.predecessors(cell))
-                    cell_list.sort()
-                    for i in range(len(cell_list)):
-                        income_cell = cell_list[i] 
-                        if income_cell not in info: continue
-                        label = info[cell][0]+ str(i) if alphabet_label else info[income_cell][0]
-                        info[income_cell] = (label,CellType.MERGED)         
+            if len(incoming) == 1 and incoming[0] in info:
+                info[cell] = (info[incoming[0]][0], color)
+            else:
+                info[cell] = (get_new_label(), color)
+    
+    for node_source, node_target in edges:
+        if CellDefine(G, node_source).split:
+            # label it's outgoing cells 
+            cell_list = list(G.successors(cell))
+            cell_list.sort()
+            for i in range(len(cell_list)):
+                outgoing_cell = cell_list[i]
+                label = info[node_source][0] + str(i)
+                info[outgoing_cell] = (label, color)
 
+        if CellDefine(G, node_target).merge:
+            # label it's incoming cells 
+            cell_list = list(G.predecessors(cell))
+            cell_list.sort()
+            for i in range(len(cell_list)):
+                income_cell = cell_list[i] 
+                label = info[cell][0]+ str(i) 
+                info[income_cell] = (label,color)         
+                
     return info
 
 
-def get_alphabet_label_info(G, cells = None, alphabet_label = False):
-    cells = list(G.nodes()) if cells == None else cells
+
+def get_generation_label_info(G):
+    cells = list(G.nodes())
     cells.sort()
-
-    max_frame = cells[-1].frame 
-
     info = {}
     cell_id = 0
+    random.seed(119)
 
-    if alphabet_label:
-        alphabet = string.ascii_uppercase
+    alphabet = string.ascii_lowercase
 
     def get_new_label():
         nonlocal cell_id 
-        label = alphabet[cell_id % len(alphabet)] if alphabet_label else cell_id
+        label = alphabet[cell_id % len(alphabet)]
         cell_id = cell_id + 1
         return label
+    
+    def label_cell(cell, color, label, index):
+        current_label = label + str(index) if index > 0 else label
+        info[cell] = (current_label, color)
+
+        outgoing_cells = list(G.successors(cell))
+        new_index = index if len(outgoing_cells) == 1 else index + 1
+        for outgoing_cell in list(G.successors(cell)):
+            label_cell(outgoing_cell, color, label, new_index)
 
     for cell in cells:
         if cell not in info:
-            define = CellDefine(G, cell)
-            incoming = len(list(G.predecessors(cell)))
-            # label birth/death, notice they are not conflict with merge/split
-            # label birth/death first, so merge/split have higher priority, since will keep the label of latest asssigned
-            if define.birth:
-                label = get_new_label()
-                info[cell] = (label, CellType.BIRTH)
-            elif define.die:
-                if cell.frame == max_frame:
-                    info[cell] = (info[mother][0],CellType.UNKOWN)
-                else:
-                    info[cell] = (info[mother][0],CellType.DIE)
-            elif define.ghost:
-                info[cell] = ("👻", CellType.UNKOWN)
-
-            # lable all other events. regular(1 to 1), split, and merge are parallel structure. 
-            if incoming > 0:
-                mother = list(G.predecessors(cell))[0]
-                if define.regular: 
-                    info[cell] = (info[mother][0], CellType.REGULAR)
-                elif define.split:
-                    # label itself 
-                    info[cell] = (info[mother][0], CellType.SPLIT)
-                    # label it's outgoing cells 
-                    cell_list = list(G.successors(cell))
-                    cell_list.sort()
-                    for i in range(len(cell_list)):
-                        outgoing_cell = cell_list[i]
-                        # give a label 
-                        label = get_new_label() if not alphabet_label else info[mother][0] + str(i)
-                        info[outgoing_cell] = (label,CellType.SPLITED)
-                elif define.merge:
-                    # label itself
-                    label = get_new_label()
-                    info[cell] = (label, CellType.MERGE)
-                    # label it's incoming cells 
-                    cell_list = list(G.predecessors(cell))
-                    cell_list.sort()
-                    for i in range(len(cell_list)):
-                        income_cell = cell_list[i]
-                        # assert income_cell in info, "the cell frame before current cell haven't be labeled"
-                        label = info[cell][0]+ str(i) if alphabet_label else info[income_cell][0]
-                        info[income_cell] = (label,CellType.MERGED)         
+            color = new_color(random.random())
+            label_cell(cell, color, get_new_label(), 0)
 
     return info
 
 
 
-"""
-
-# Master function of draw polygon and cell id label on raw image
-def get_single_track_visualization(G,base_dir, info, circle_label = False, representative_point = False):
-    video_dir = os.path.join(base_dir, "video")
-    os.makedirs(video_dir, exist_ok=True)
-
-    composer = LinkComposer(set(G.nodes()))
-    # found all initial images.
-    filename = "*.tif"
-    file_path = os.path.join(base_dir, filename)
-
-    files = glob.glob(file_path)
-    files.sort()
-
-    for frame in range(len(files)):
-        # Load and convert the image
-        file = files[frame]
-        image = cv2.imread(file)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-        output_path = os.path.join(video_dir, f"frame{frame:05d}.png")
-        # Create a new figure and axis
-        fig, ax = plt.subplots()
-
-        ax = get_single_frame_visualization(ax, image, composer.cells_frame_dict, info, frame, circle_label, representative_point)
-        
-        plt.axis('off')
-        plt.tight_layout()
-        plt.savefig(output_path, bbox_inches='tight', pad_inches=0, transparent=True)
-
-    image_to_tif_sequence( video_dir )
-
-"""
+def new_color(hue, saturation = 1, brightness = 1):
+    """
+    Generate a random pure color with full saturation and brightness.
+    """
+    r, g, b = colorsys.hsv_to_rgb(hue, saturation, brightness)
+    return "#{:02x}{:02x}{:02x}".format(int(r*255), int(g*255), int(b*255))
 
 
 
-def plot_single_frame_phase(G, info, frame, image, cells_frame_dict= None, circle_label = False, representative_point = False, save = False, figsize = None):
-    # Convert it to a Path object
-    video_dir = "./video"
-    output_path = os.path.join(video_dir, f"frame{frame:05d}.png")
+def plot_single_frame_phase(G, info, frame, image, cells_frame_dict= None, save = False, **kwargs):
+
     # Create a new figure and axis
-    fig, ax = plt.subplots(figsize=figsize)
+    figsize = kwargs.get('figsize', None)
+    fig, ax = plt.subplots(figsize = figsize)
 
     cells_frame_dict = LinkComposer(set(G.nodes())).cells_frame_dict if cells_frame_dict is None else cells_frame_dict
-    ax = subplot_single_frame_phase(ax, image, cells_frame_dict, info, frame, circle_label, representative_point)
+    ax = subplot_single_frame_phase(ax, image, cells_frame_dict, info, frame, **kwargs)
     
     plt.axis('off')
     plt.tight_layout()
     if save:
+        dir_path = kwargs.get('dir_path', './output')
+        output_path = os.path.join(dir_path, f"frame{frame:05d}.png")
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
         plt.savefig(output_path, bbox_inches='tight', pad_inches=0, transparent=True)
 
 
 
 # Draw polygon and cell id label on each raw image 
-def subplot_single_frame_phase(ax, image, cells_frame_dict, info, frame, circle_label = False, representative_point = False ):
+def subplot_single_frame_phase(ax, image, cells_frame_dict, info, frame,  **kwargs):
     # Display the image
     ax.imshow(image)
 
+    circle_label = kwargs.get('circle_label', False)
+    representative_point = kwargs.get('representative_point', False)
+    show_label = kwargs.get('show_label', True)
+
+
     for cell in cells_frame_dict[frame]:
-        color_dict = CELL_TYPE_COLOR
         if cell in info:
             # Ensure this is a list of (x, y) tuples
             polygon_vertices = cell.polygon.exterior.coords
 
-            color = color_dict[info[cell][1]]
+            color = info[cell][1]
             label = info[cell][0]
 
             # Half transparent
@@ -532,11 +456,12 @@ def subplot_single_frame_phase(ax, image, cells_frame_dict, info, frame, circle_
                 centroid_x = cell.polygon.centroid.x
                 centroid_y = cell.polygon.centroid.y
 
-            if label is not None and label != "":
+            fontsize = kwargs.get('fontsize', 8)
+            if label is not None and label != "" and show_label:
                 if circle_label:
-                    ax.text(centroid_x, centroid_y, str(label), color='black', fontweight='bold', bbox=dict(facecolor='white', edgecolor='black', boxstyle='circle'), fontsize=8, horizontalalignment='center', verticalalignment='center')
+                    ax.text(centroid_x, centroid_y, str(label), color='black', fontweight='bold', bbox=dict(facecolor='white', edgecolor='black', boxstyle='circle'), fontsize=fontsize, horizontalalignment='center', verticalalignment='center')
                 else:
-                    ax.text(centroid_x, centroid_y, str(label), color='white', fontweight='bold', fontsize=5, horizontalalignment='center', verticalalignment='center')
+                    ax.text(centroid_x, centroid_y, str(label), color='white', fontweight='bold', fontsize=fontsize, horizontalalignment='center', verticalalignment='center')
 
     # Optionally, set the axis limits based on the image size
     ax.set_xlim(0, image.shape[1])
@@ -546,31 +471,6 @@ def subplot_single_frame_phase(ax, image, cells_frame_dict, info, frame, circle_
     ax.set_frame_on(False)
 
     return ax 
-
-
-def image_to_tif_sequence(images_folder):
-    tif_images = [f for f in os.listdir(images_folder) if f.lower().endswith('.png')]
-    tif_images.sort()
-
-    # Output TIF "video" filename
-    output_tif_sequence = images_folder  + 'time_sequences.tif'
-
-    images = []
-
-    for image_filename in tif_images:
-        image = Image.open(os.path.join(images_folder,image_filename))
-        images.append(image)
-
-    # Save the sequence as a multi-page TIF file
-    images[0].save(
-        output_tif_sequence,
-        save_all=True,
-        append_images=images[1:],
-        resolution=100.0,  # Set the resolution (DPI)
-        compression='tiff_lzw'  # Set the compression method
-    )
-
-    print("TIF sequence created successfully.")
 
 
 

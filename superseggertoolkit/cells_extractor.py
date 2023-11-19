@@ -72,6 +72,21 @@ def get_folder_info(foldername: str):
     return frame_count, first_frame_shape
 
 
+def read_tiff_in_folder(phase_folder, frame):
+    files = glob.glob(phase_folder)
+    sorted_filenames = natsorted(files)
+    image = cv2.imread(sorted_filenames[frame])
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    
+    # Normalize if the image is not None and dtype is uint16
+    if image is not None and image.dtype == np.uint16:
+        # Normalize to 0-255 range
+        image = (image / 256).astype(np.uint8)
+
+    return image
+
+
+
 def read_tiff_sequence(filename):
     mask_dict = {}
     with Image.open(filename) as img:
@@ -92,6 +107,7 @@ def read_tiff_sequence(filename):
                 break
 
     return mask_dict
+
 
 
 def get_tiff_info(filename):
@@ -121,9 +137,15 @@ def read_tiff_frame_like_cv2(filename, frame_number):
     except (EOFError, FileNotFoundError, OSError):
         # If the frame doesn't exist, or file can't be opened, return None
         return None
+
+    # Normalize if the dtype is uint16
+    if frame_np.dtype == np.uint16:
+        # Normalize to 0-255 range
+        frame_np = (frame_np / 256).astype(np.uint8)
+
     frame_rgb = cv2.cvtColor(frame_np, cv2.COLOR_BGR2RGB)
     return frame_rgb
-    
+
 
 
 def get_cells_set_by_mask_dict(mask_dict, force = False):
