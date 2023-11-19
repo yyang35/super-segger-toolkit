@@ -29,7 +29,11 @@ The main data **resource manager, called LinkComposer**, stores phase/mask direc
 ## Visualization:
 Phase tracking videos:
 <p align="center">
-  <img src="https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/event_label.gif" alt="Image 1" width="300"/>
-  <img src="https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/generation_label.gif" alt="Image 2" width="300"/>
-  <img src="https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/warning_label.gif" alt="Image 3" width="300"/>
+  <img src="https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/event_label.gif" alt="Image 1" width="200"/>
+  <img src="https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/generation_label.gif" alt="Image 2" width="200"/>
+  <img src="https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/warning_label.gif" alt="Image 3" width="200"/>
 </p>
+Lineage comparsion:
+![image](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/lineage_comparsion.png)
+Cross time phase video compasion:
+![image](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/phase_comparsion.png)
