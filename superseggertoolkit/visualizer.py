@@ -212,6 +212,7 @@ def get_graph_stats_text(G):
         birth += define.birth
         death += define.die
         ghost += define.ghost
+        if cell.frame != max_frame and define.die: irregular_death += 1
 
     coverage_rate = (len(composer.cells) - ghost) / len(composer.cells)
     frame_index = sorted(composer.cells_frame_dict)

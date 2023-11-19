@@ -10,7 +10,12 @@ import pandas as pd
 from natsort import natsorted
 import warnings
 
+from PIL import Image
+import numpy as np
+
+
 from cell import Cell
+
 
 
 # Mask reader which can only read supersegger-omnipose produced mask. It use time frame with prefix "t" to sort frame
@@ -54,6 +59,57 @@ def get_mask_dict(foldername: str):
         mask_dict[i] = mask
 
     return mask_dict
+
+
+def get_folder_info(foldername: str):
+    filenames = glob.glob(foldername)
+    assert len(filenames) > 0, f"no image in {foldername}"
+    # Using nature storted name here, for let name like 't1' < 't10' 
+    frame_count = len(filenames)
+    img = Image.open(filenames[0])
+    first_frame_shape = np.array(img).shape
+
+    return frame_count, first_frame_shape
+
+
+def read_tiff_sequence(filename):
+    mask_dict = {}
+    with Image.open(filename) as img:
+        i = 0
+        while True:
+            # Convert image to grayscale ('L')
+            img.seek(i)
+            img_converted = img.convert('L')
+            mask = np.array(img_converted)
+
+            mask_dict[i] = mask
+
+            i += 1
+            try:
+                img.seek(i)
+            except EOFError:
+                # Exit loop when end of file is reached
+                break
+
+    return mask_dict
+
+
+def get_tiff_info(filename):
+    with Image.open(filename) as img:
+        # Get the shape of the first frame
+        img.seek(0)
+        first_frame_shape = np.array(img).shape
+        
+        # Count the total number of frames
+        frame_count = 1
+        while True:
+            try:
+                img.seek(frame_count)
+                frame_count += 1
+            except EOFError:
+                break
+
+    return frame_count, first_frame_shape
 
 
 

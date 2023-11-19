@@ -9,6 +9,7 @@ import networkx as nx
 from typing import Set
 import sys
 
+import cells_extractor
 
 class LinkComposer:
 
@@ -21,6 +22,7 @@ class LinkComposer:
 
 
 
+    # a dictionary of cells, with key as frame index, and value as a set of cell
     def get_cells_frame_dict(self, cells: Set[Cell]) -> dict:
         cells_frame_dict = {}
         for cell in cells:
@@ -33,6 +35,7 @@ class LinkComposer:
     
 
 
+    # provide new graphy base on cell set data 
     def make_new_dircted_graph(self):
         G = nx.DiGraph()
         for cell in self.cells:
@@ -41,14 +44,75 @@ class LinkComposer:
         return G
 
 
-    
+
+    # link two cells by adding edge on graph, protected graph by assert nodes are in graph
     def link(self, G, cell1, cell2):
         assert cell1 in self.cells, "source cell not in cells"
         assert cell2 in self.cells, "target cell not in cells"
         G.add_edge(cell1, cell2)
 
 
+    
+    # extract cells and construct other related info from phase tif, and mask tif #
+    @staticmethod
+    def read_tif(mask_tif: str, phase_tif = None):
+        phase_tif  = mask_tif if phase_tif is None else phase_tif
+        mask_dimension, phase_dimension = cells_extractor.get_tiff_info(mask_tif),  cells_extractor.get_tiff_info(phase_tif)
+        assert  mask_dimension == phase_dimension, f"phase, mask folder don't have same dimension, phase: {phase_dimension} mask: {mask_dimension}, "
+        masks = cells_extractor.read_tiff_sequence(mask_tif)
+        cells, error = cells_extractor.get_cells_set_by_mask_dict(masks, force=True)
 
+        composer = LinkComposer(cells)
+        composer.error = error
+        composer.phase_tif = phase_tif
+        composer.mask_tif = phase_tif
+
+        return composer
+
+
+
+    # extract cells and construct other related info from phase folder, and mask folder #
+    @staticmethod
+    def read_folder(mask_folder: str, phase_folder = None):
+        phase_folder = mask_folder if phase_folder is None else phase_folder
+        mask_dimension, phase_dimension = cells_extractor.get_folder_info(mask_folder) , cells_extractor.get_folder_info(phase_folder)
+        assert  mask_dimension == phase_dimension, f"phase, mask folder don't have same dimension, phase: {phase_dimension} mask: {mask_dimension}, "
+        masks = cells_extractor.get_mask_dict(mask_folder)
+        cells, error  = cells_extractor.get_cells_set_by_mask_dict(masks, force = True)
+
+        composer = LinkComposer(cells)
+        composer.error = error
+        composer.phase_folder = phase_folder
+        composer.mask_folder = mask_folder
+
+        return composer
+
+
+
+    # show error mask on extracting cells
+    def show_mask_error(self):
+        import visualizer
+        if hasattr(self, 'mask_tif'):
+            masks = cells_extractor.read_tiff_sequence(self.phase_tif)
+        elif hasattr(self, 'mask_folder'):
+            masks = cells_extractor.get_mask_dict(self.mask_folder)
+        else: 
+            raise Exception("Composer do't have mask info, use visualizer.plot_error_masks(mask,error) to plot")
+
+        return visualizer.plot_error_masks(mask=masks, error= self.error)
+
+
+
+
+    #=================== following are read link result file related function =================== #
+
+    def private_method(func):
+        def wrapper(*args, **kwargs):
+            print(f"Warning: {func.__name__} is a private method and should not be accessed directly.")
+            return func(*args, **kwargs)
+        return wrapper
+    
+    
     def get_manual_link_dict(self, excel_path):
         assert excel_path.endswith('.xlsx'), "File must be an Excel file with a .xlsx extension"
 
@@ -125,13 +189,6 @@ class LinkComposer:
         G =  self._abstact_tackmate_assignment_by_edges_file(spots, edge_filename)
         return G
     
-
-
-    def private_method(func):
-        def wrapper(*args, **kwargs):
-            print(f"Warning: {func.__name__} is a private method and should not be accessed directly.")
-            return func(*args, **kwargs)
-        return wrapper
 
 
 
