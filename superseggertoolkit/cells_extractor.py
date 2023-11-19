@@ -112,6 +112,19 @@ def get_tiff_info(filename):
     return frame_count, first_frame_shape
 
 
+    
+def read_tiff_frame_like_cv2(filename, frame_number):
+    try:
+        with Image.open(filename) as img:
+            img.seek(frame_number)
+            frame_np = np.array(img)
+    except (EOFError, FileNotFoundError, OSError):
+        # If the frame doesn't exist, or file can't be opened, return None
+        return None
+    frame_rgb = cv2.cvtColor(frame_np, cv2.COLOR_BGR2RGB)
+    return frame_rgb
+    
+
 
 def get_cells_set_by_mask_dict(mask_dict, force = False):
     cells_set = set()

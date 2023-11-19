@@ -11,11 +11,11 @@ import glob
 import networkx as nx
 import matplotlib.ticker as ticker
 from typing import Set
+from pathlib import Path
 
 from cell import Cell
 from cell_event import CellEvent, CellType, CellDefine
 from link_composer import LinkComposer
-
 
 
 # =========================  color styling constant ================================ #
@@ -36,7 +36,7 @@ CELL_TYPE_COLOR = {
     CellType.MERGED:"#8DE279", 
     CellType.DIE:"#FF0000", 
     CellType.BIRTH: "#FF00ED",
-    CellType.UNKOWN: "#878787",
+    CellType.UNKOWN: "#666666",
 }
 
 
@@ -162,23 +162,7 @@ def get_single_frame_lineage_info(G, frame):
     cells_center = composer.cells_frame_dict[frame]
     cell_s = {"red": cells_center}
 
-    connected_edges = set()
-    connected_nodes = set()
-
-    for cell in cells_center:
-        # Get incoming and outgoing edges for each cell
-        in_edges = G.in_edges(cell)
-        out_edges = G.out_edges(cell)
-
-        # Update the sets of connected edges and nodes
-        connected_edges.update(in_edges)
-        connected_edges.update(out_edges)
-
-        # Extract nodes from edges
-        for edge in in_edges:
-            connected_nodes.add(edge[0])  # Source node of the incoming edge
-        for edge in out_edges:
-            connected_nodes.add(edge[1])  # Target node of the outgoing edge
+    connected_nodes, connected_edges = get_connected_edges_cells(cells_center)
     
     edge_s = {"grey": connected_edges}
     cell_s = {"grey": connected_nodes, "blue": cells_center}
@@ -197,7 +181,31 @@ def get_single_frame_lineage_info(G, frame):
     return  cell_s, edge_s, pos
 
 
-# 
+
+def get_connected_edges_cells(G, cells):
+
+    connected_nodes = set()
+    connected_edges = set()
+
+    for cell in cells:
+        # Get incoming and outgoing edges for each cell
+        in_edges = G.in_edges(cell)
+        out_edges = G.out_edges(cell)
+
+        # Update the sets of connected edges and nodes
+        connected_edges.update(in_edges)
+        connected_edges.update(out_edges)
+
+        # Extract nodes from edges
+        for edge in in_edges:
+            connected_nodes.add(edge[0])  # Source node of the incoming edge
+        for edge in out_edges:
+            connected_nodes.add(edge[1])  # Target node of the outgoing edge
+    
+    return connected_nodes, connected_edges
+
+
+# give a block of statstic text of a linking graph, shown on lineage
 def get_graph_stats_text(G):
 
     composer = LinkComposer(G.nodes())
@@ -227,7 +235,7 @@ def get_graph_stats_text(G):
 
 
 
-# ============================== fluorescent video stetch related ================================== #
+# ============================== phase/fluorescent video stetch related ================================== #
 
 # for images visualization, label the cell label and it's type 
 # this cell label only for reability and represent relative relationship, no strict label be applied
@@ -259,10 +267,151 @@ def get_label_info(G, cells = None, alphabet_label = False):
                 label = get_new_label()
                 info[cell] = (label, CellType.BIRTH)
             elif define.die:
+                if mother not in info: continue
                 if cell.frame == max_frame:
                     info[cell] = (info[mother][0],CellType.UNKOWN)
                 else:
                     info[cell] = (info[mother][0],CellType.DIE)
+            elif define.ghost:
+                info[cell] = ("Ø", CellType.UNKOWN)
+
+            # lable all other events. regular(1 to 1), split, and merge are parallel structure. 
+            if incoming > 0:
+                mother = list(G.predecessors(cell))[0]
+                if mother not in info: continue
+                if define.regular: 
+                    info[cell] = (info[mother][0], CellType.REGULAR)
+                elif define.split:
+                    # label itself 
+                    info[cell] = (info[mother][0], CellType.SPLIT)
+                    # label it's outgoing cells 
+                    cell_list = list(G.successors(cell))
+                    cell_list.sort()
+                    for i in range(len(cell_list)):
+                        outgoing_cell = cell_list[i]
+                        # give a label 
+                        label = get_new_label() if not alphabet_label else info[mother][0] + str(i)
+                        info[outgoing_cell] = (label,CellType.SPLITED)
+                elif define.merge:
+                    # label itself
+                    label = get_new_label()
+                    info[cell] = (label, CellType.MERGE)
+                    # label it's incoming cells 
+                    cell_list = list(G.predecessors(cell))
+                    cell_list.sort()
+                    for i in range(len(cell_list)):
+                        income_cell = cell_list[i] 
+                        if income_cell not in info: continue
+                        label = info[cell][0]+ str(i) if alphabet_label else info[income_cell][0]
+                        info[income_cell] = (label,CellType.MERGED)         
+
+    return info
+
+
+
+def get_label_info(G, cells = None, alphabet_label = False):
+    cells = list(G.nodes()) if cells == None else cells
+    cells.sort()
+
+    max_frame = cells[-1].frame 
+
+    info = {}
+    cell_id = 0
+
+    if alphabet_label:
+        alphabet = string.ascii_uppercase
+
+    def get_new_label():
+        nonlocal cell_id 
+        label = alphabet[cell_id % len(alphabet)] if alphabet_label else cell_id
+        cell_id = cell_id + 1
+        return label
+
+    for cell in cells:
+        if cell not in info:
+            define = CellDefine(G, cell)
+            incoming = len(list(G.predecessors(cell)))
+            # label birth/death, notice they are not conflict with merge/split
+            # label birth/death first, so merge/split have higher priority, since will keep the label of latest asssigned
+            if define.birth:
+                label = get_new_label()
+                info[cell] = (label, CellType.BIRTH)
+            elif define.die:
+                if mother not in info: continue
+                if cell.frame == max_frame:
+                    info[cell] = (info[mother][0],CellType.UNKOWN)
+                else:
+                    info[cell] = (info[mother][0],CellType.DIE)
+            elif define.ghost:
+                info[cell] = ("Ø", CellType.UNKOWN)
+
+            # lable all other events. regular(1 to 1), split, and merge are parallel structure. 
+            if incoming > 0:
+                mother = list(G.predecessors(cell))[0]
+                if mother not in info: continue
+                if define.regular: 
+                    info[cell] = (info[mother][0], CellType.REGULAR)
+                elif define.split:
+                    # label itself 
+                    info[cell] = (info[mother][0], CellType.SPLIT)
+                    # label it's outgoing cells 
+                    cell_list = list(G.successors(cell))
+                    cell_list.sort()
+                    for i in range(len(cell_list)):
+                        outgoing_cell = cell_list[i]
+                        # give a label 
+                        label = get_new_label() if not alphabet_label else info[mother][0] + str(i)
+                        info[outgoing_cell] = (label,CellType.SPLITED)
+                elif define.merge:
+                    # label itself
+                    label = get_new_label()
+                    info[cell] = (label, CellType.MERGE)
+                    # label it's incoming cells 
+                    cell_list = list(G.predecessors(cell))
+                    cell_list.sort()
+                    for i in range(len(cell_list)):
+                        income_cell = cell_list[i] 
+                        if income_cell not in info: continue
+                        label = info[cell][0]+ str(i) if alphabet_label else info[income_cell][0]
+                        info[income_cell] = (label,CellType.MERGED)         
+
+    return info
+
+
+def get_alphabet_label_info(G, cells = None, alphabet_label = False):
+    cells = list(G.nodes()) if cells == None else cells
+    cells.sort()
+
+    max_frame = cells[-1].frame 
+
+    info = {}
+    cell_id = 0
+
+    if alphabet_label:
+        alphabet = string.ascii_uppercase
+
+    def get_new_label():
+        nonlocal cell_id 
+        label = alphabet[cell_id % len(alphabet)] if alphabet_label else cell_id
+        cell_id = cell_id + 1
+        return label
+
+    for cell in cells:
+        if cell not in info:
+            define = CellDefine(G, cell)
+            incoming = len(list(G.predecessors(cell)))
+            # label birth/death, notice they are not conflict with merge/split
+            # label birth/death first, so merge/split have higher priority, since will keep the label of latest asssigned
+            if define.birth:
+                label = get_new_label()
+                info[cell] = (label, CellType.BIRTH)
+            elif define.die:
+                if cell.frame == max_frame:
+                    info[cell] = (info[mother][0],CellType.UNKOWN)
+                else:
+                    info[cell] = (info[mother][0],CellType.DIE)
+            elif define.ghost:
+                info[cell] = ("👻", CellType.UNKOWN)
 
             # lable all other events. regular(1 to 1), split, and merge are parallel structure. 
             if incoming > 0:
@@ -289,13 +438,15 @@ def get_label_info(G, cells = None, alphabet_label = False):
                     cell_list.sort()
                     for i in range(len(cell_list)):
                         income_cell = cell_list[i]
-                        assert income_cell in info, "the cell frame before current cell haven't be labeled"
+                        # assert income_cell in info, "the cell frame before current cell haven't be labeled"
                         label = info[cell][0]+ str(i) if alphabet_label else info[income_cell][0]
                         info[income_cell] = (label,CellType.MERGED)         
 
     return info
 
 
+
+"""
 
 # Master function of draw polygon and cell id label on raw image
 def get_single_track_visualization(G,base_dir, info, circle_label = False, representative_point = False):
@@ -327,11 +478,30 @@ def get_single_track_visualization(G,base_dir, info, circle_label = False, repre
         plt.savefig(output_path, bbox_inches='tight', pad_inches=0, transparent=True)
 
     image_to_tif_sequence( video_dir )
-        
+
+"""
+
+
+
+def plot_single_frame_phase(G, info, frame, image, cells_frame_dict= None, circle_label = False, representative_point = False, save = False, figsize = None):
+    # Convert it to a Path object
+    video_dir = "./video"
+    output_path = os.path.join(video_dir, f"frame{frame:05d}.png")
+    # Create a new figure and axis
+    fig, ax = plt.subplots(figsize=figsize)
+
+    cells_frame_dict = LinkComposer(set(G.nodes())).cells_frame_dict if cells_frame_dict is None else cells_frame_dict
+    ax = subplot_single_frame_phase(ax, image, cells_frame_dict, info, frame, circle_label, representative_point)
+    
+    plt.axis('off')
+    plt.tight_layout()
+    if save:
+        plt.savefig(output_path, bbox_inches='tight', pad_inches=0, transparent=True)
+
 
 
 # Draw polygon and cell id label on each raw image 
-def get_single_frame_visualization(ax, image, cells_frame_dict, info, frame, circle_label = False, representative_point = False ):
+def subplot_single_frame_phase(ax, image, cells_frame_dict, info, frame, circle_label = False, representative_point = False ):
     # Display the image
     ax.imshow(image)
 
@@ -356,16 +526,17 @@ def get_single_frame_visualization(ax, image, cells_frame_dict, info, frame, cir
             if representative_point: 
                  # this is not center of cell, but a point that guaranteed in polygon
                 centroid_x = cell.polygon.representative_point().x
-                centroid_y = cell.polygon.representative_point().x
+                centroid_y = cell.polygon.representative_point().y
             else:
                 # Add text annotation
                 centroid_x = cell.polygon.centroid.x
                 centroid_y = cell.polygon.centroid.y
 
-            if circle_label:
-                ax.text(centroid_x, centroid_y, str(label), color='black', fontweight='bold', bbox=dict(facecolor='white', edgecolor='black', boxstyle='circle'), fontsize=5, horizontalalignment='center', verticalalignment='center')
-            else:
-                ax.text(centroid_x, centroid_y, str(label), color='white', fontweight='bold', fontsize=5, horizontalalignment='center', verticalalignment='center')
+            if label is not None and label != "":
+                if circle_label:
+                    ax.text(centroid_x, centroid_y, str(label), color='black', fontweight='bold', bbox=dict(facecolor='white', edgecolor='black', boxstyle='circle'), fontsize=8, horizontalalignment='center', verticalalignment='center')
+                else:
+                    ax.text(centroid_x, centroid_y, str(label), color='white', fontweight='bold', fontsize=5, horizontalalignment='center', verticalalignment='center')
 
     # Optionally, set the axis limits based on the image size
     ax.set_xlim(0, image.shape[1])

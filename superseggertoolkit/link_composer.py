@@ -8,8 +8,11 @@ import warnings
 import networkx as nx
 from typing import Set
 import sys
+import cv2
+from natsort import natsorted
 
 import cells_extractor
+
 
 class LinkComposer:
 
@@ -88,7 +91,6 @@ class LinkComposer:
         return composer
 
 
-
     # show error mask on extracting cells
     def show_mask_error(self):
         import visualizer
@@ -100,7 +102,27 @@ class LinkComposer:
             raise Exception("Composer do't have mask info, use visualizer.plot_error_masks(mask,error) to plot")
 
         return visualizer.plot_error_masks(mask=masks, error= self.error)
+    
 
+
+    def show_frame_phase(self, G, frame, info = None, circle_label = False, representative_point = False, figsize = None):
+        import visualizer
+        this_frame_cells = self.cells_frame_dict[frame]
+        connected_cells,_  = visualizer.get_connected_edges_cells(G, this_frame_cells)
+        info = visualizer.get_label_info(G, list(connected_cells.union(this_frame_cells)), alphabet_label=True) if info is None else info
+        
+        if hasattr(self, 'phase_tif'):
+            image = visualizer.read_tiff_frame_like_cv2(self.phase_tif, frame)
+        elif hasattr(self, 'phase_folder'):
+            files = glob.glob(self.phase_folder)
+            sorted_filenames = natsorted(files)
+            image = cv2.imread(sorted_filenames[frame])
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        else: 
+            raise Exception("Composer don't have phase info, use visualizer.to plot")
+        
+        return visualizer.plot_single_frame_phase(G, info, frame, image, cells_frame_dict=self.cells_frame_dict, circle_label = circle_label, representative_point = representative_point, figsize=figsize)
+        
 
 
 
