@@ -4,11 +4,11 @@ from PIL import Image
 import numpy as np
 import re
 import cv2
-from shapely.geometry import Polygon
 from matplotlib.patches import Polygon as pltPolygon
 import pandas as pd
 from natsort import natsorted
 import warnings
+from shapely.geometry import Polygon, LineString
 
 from PIL import Image
 import numpy as np
@@ -178,9 +178,25 @@ def get_cells_set_by_mask_dict(mask_dict, force = False):
 
 
 def single_cell_mask_to_polygon(cell_mask):
-    # convert 1,0 binary mask to 255,0 mask, thus it's easier for extract polygon
-    cell_mask = ( cell_mask  * 255).astype(np.uint8)
-    contours, _ = cv2.findContours(cell_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    polygons = [Polygon(contour.reshape(-1, 2)) for contour in contours]
-    assert len(polygons) == 1 , "Disconnected multi-pieces found on single mask/cell label"
-    return polygons[0]
+    cell_mask = (cell_mask * 255).astype(np.uint8)
+    contours, hierarchy = cv2.findContours(cell_mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+
+    if not contours:
+        raise ValueError("No contours found")
+
+    # Assuming the largest contour is the exterior
+    exterior = contours[0].reshape(-1, 2)
+    exterior_polygon = Polygon(exterior)
+
+    holes = []
+    for i, contour in enumerate(contours):
+        # Check if it's a hole (inside the exterior)
+        if hierarchy[0][i][3] == 0:  # If it's a child of the exterior contour
+            hole = contour.reshape(-1, 2)
+            hole_line = LineString(hole)
+            if not hole_line.within(exterior_polygon):
+                raise ValueError("Found a contour that is not inside the exterior")
+            holes.append(hole)
+
+    polygon = Polygon(shell=exterior, holes=holes)
+    return polygon

@@ -14,6 +14,7 @@ from typing import Set
 from pathlib import Path
 import random
 import colorsys
+from descartes import PolygonPatch
 
 from cell import Cell
 from cell_event import CellEvent, CellType, CellDefine
@@ -425,16 +426,12 @@ def subplot_single_frame_phase(ax, image, cells_frame_dict, info, frame,  **kwar
     # Display the image
     ax.imshow(image)
 
-    circle_label = kwargs.get('circle_label', False)
+    label_style = kwargs.get('label_style', 'regular')
     representative_point = kwargs.get('representative_point', False)
-    show_label = kwargs.get('show_label', True)
 
 
     for cell in cells_frame_dict[frame]:
         if cell in info:
-            # Ensure this is a list of (x, y) tuples
-            polygon_vertices = cell.polygon.exterior.coords
-
             color = info[cell][1]
             label = info[cell][0]
 
@@ -442,10 +439,10 @@ def subplot_single_frame_phase(ax, image, cells_frame_dict, info, frame,  **kwar
             facecolor = color + "60"
 
             # Create a polygon patch
-            polygon = patches.Polygon(polygon_vertices, closed=True, edgecolor=color, facecolor=facecolor)
+            path = PolygonPatch(cell.polygon.__geo_interface__, edgecolor=color, facecolor=facecolor)
 
             # Add the polygon patch to the axis
-            ax.add_patch(polygon)
+            ax.add_patch(path)
 
             if representative_point: 
                  # this is not center of cell, but a point that guaranteed in polygon
@@ -457,10 +454,10 @@ def subplot_single_frame_phase(ax, image, cells_frame_dict, info, frame,  **kwar
                 centroid_y = cell.polygon.centroid.y
 
             fontsize = kwargs.get('fontsize', 8)
-            if label is not None and label != "" and show_label:
-                if circle_label:
+            if label is not None and label != "":
+                if label_style == 'circled':
                     ax.text(centroid_x, centroid_y, str(label), color='black', fontweight='bold', bbox=dict(facecolor='white', edgecolor='black', boxstyle='circle'), fontsize=fontsize, horizontalalignment='center', verticalalignment='center')
-                else:
+                elif label_style == 'regular':
                     ax.text(centroid_x, centroid_y, str(label), color='white', fontweight='bold', fontsize=fontsize, horizontalalignment='center', verticalalignment='center')
 
     # Optionally, set the axis limits based on the image size
