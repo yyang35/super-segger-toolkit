@@ -32,23 +32,28 @@ Read Demo for more information:
 ## Visualization:
 Notice although the following data are all in group of three, they are not related to each other, I choice num=3 for each sample just because it looks nice in that way. 
 
-**Phase tracking videos:**
+1. **Phase tracking videos:**
 Cell Event Tracking Labeling:
 check different label demo for more information.
 
 Cell Event Tracking Labeling:
 check different label demo for more information.
-| | | |
-|:---:|:---:|:---:|
-| Cell Event Tracking Labeling | Generation/Ancient tracking Labeling | Warning Error Labeling |
-| ![Image 1](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/event_label.gif) | ![Image 2](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/generation_label.gif) | ![Image 3](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/warning_label.gif) |
+
+- Cell Event Tracking labeling
+![Image 1](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/event_label.gif) 
+- Ancient/Generation Tracking labeling
+![Image 2](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/generation_label.gif) 
+- Error/Linking Difference Tracking labeling
+![Image 3](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/warning_label.gif) 
 
 
-**Cross time phase video compasion:**
+2. **Cross time phase video compasion:**
+
 Also, check demo visualization for more information
 ![image](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/phase_comparsion.png)
 
-**Lineage comparsion:**
+3. **Lineage comparsion:**
+
 Check demo visualization for more information, **this lineage is from falimented cells rather than above data**, since this data lineage is more interesting and falimented cells phase data more interesting, so using different data on different visualization. 
 ![image](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/lineage_comparsion.png)
 
