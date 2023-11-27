@@ -68,7 +68,7 @@ class LinkComposer:
         composer = LinkComposer(cells)
         composer.error = error
         composer.phase_tif = phase_tif
-        composer.mask_tif = phase_tif
+        composer.mask_tif = mask_tif
 
         return composer
 
@@ -120,20 +120,24 @@ class LinkComposer:
             image = cells_extractor.read_tiff_frame_like_cv2(self.phase_tif, frame)
         elif hasattr(self, 'phase_folder'):
             image = cells_extractor.read_tiff_in_folder(self.phase_folder, frame)
-        else: 
-            raise Exception("Composer don't have phase info, use visualizer plot")
+        elif hasattr(self, "mask_tif"): 
+            masks = cells_extractor.read_tiff_sequence(self.phase_tif)
+            mask_image = cv2.imread(masks[0], cv2.IMREAD_GRAYSCALE)
+            height, width = mask_image.shape[:2]
+            image = np.full((height, width, 3), 128, dtype=np.uint8) 
+        elif hasattr(self, 'mask_folder'):
+            masks = cells_extractor.get_mask_dict(self.mask_folder)
+            mask_image = cv2.imread(masks[0], cv2.IMREAD_GRAYSCALE)
+            height, width = mask_image.shape[:2]
+            image = np.full((height, width, 3), 128, dtype=np.uint8) 
+        else:
+            raise Exception("no phase")
+
         return image
         
 
 
     #=================== following are read link result file related function =================== #
-
-    def private_method(func):
-        def wrapper(*args, **kwargs):
-            print(f"Warning: {func.__name__} is a private method and should not be accessed directly.")
-            return func(*args, **kwargs)
-        return wrapper
-    
     
     def get_manual_link_dict(self, excel_path):
         assert excel_path.endswith('.xlsx'), "File must be an Excel file with a .xlsx extension"
@@ -145,30 +149,16 @@ class LinkComposer:
 
         assert self.frame_num == len(sheet_names) + 1, "Linking frames count not same with masks"
 
-        for frame_start in range(sheet_names):
+        for frame_start in range(len(sheet_names)):
             frame_end = frame_start + 1
-
             time_sheet = sheet_names[frame_start]
             df = excel_file.parse(time_sheet)
             df = df.astype(str)
             [source, target] = df.columns
             for index, row in df.iterrows():
-                try:
-                    mother = int(row[source])
-                except ValueError:
-                    # new born will be automatically handled by graph
-                    continue
-                daughter = row[target].lower()
-                if 'x' in daughter:
-                    # death  will be automatically handled by graph
-                    continue
-                else:
-                    cell_list = daughter.split(',')
-                
-                assert Cell(frame_start, mother) in G.nodes()
-                for cell in cell_list:
-                    assert Cell(frame_end,cell) in G.nodes()
-                    G.add_edge(Cell(frame_start, mother), Cell(frame_end,cell))
+                df = df.dropna()
+                df = df.astype(float).astype(int)
+                self.link(G, Cell(frame_start, int(row[source])), Cell(frame_end, int(row[target])))
 
         return G
 
@@ -213,8 +203,6 @@ class LinkComposer:
     
 
 
-
-    @private_method
     def _match_trackmate_cell_id_to_mask_label(self, spots_filename, UNIT_CONVERT_COEFF = 1):
 
         # Read top 4 line as header by trackmate dataformat
@@ -261,7 +249,6 @@ class LinkComposer:
         return spots
         
 
-    @private_method
     def _abstact_tackmate_assignment_by_edges_file(self, spots_df, edge_filename):
         # Read top 4 line as header by trackmate dataformat
         tracks = pd.read_csv(edge_filename, header=[0, 1, 2, 3])
