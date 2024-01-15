@@ -1,4 +1,4 @@
-from link_composer import LinkComposer
+from .link_composer import LinkComposer
 
 
 def silly_linker(composer: LinkComposer):

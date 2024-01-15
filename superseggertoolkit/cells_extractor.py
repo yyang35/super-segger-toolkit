@@ -14,7 +14,7 @@ from PIL import Image
 import numpy as np
 
 
-from cell import Cell
+from .cell import Cell
 
 
 

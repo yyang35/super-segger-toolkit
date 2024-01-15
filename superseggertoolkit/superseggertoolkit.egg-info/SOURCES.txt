@@ -1,0 +1,5 @@
+setup.py
+superseggertoolkit.egg-info/PKG-INFO
+superseggertoolkit.egg-info/SOURCES.txt
+superseggertoolkit.egg-info/dependency_links.txt
+superseggertoolkit.egg-info/top_level.txt

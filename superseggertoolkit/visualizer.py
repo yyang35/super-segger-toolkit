@@ -16,9 +16,9 @@ import random
 import colorsys
 from descartes import PolygonPatch
 
-from cell import Cell
-from cell_event import CellEvent, CellType, CellDefine
-from link_composer import LinkComposer
+from .cell import Cell
+from .cell_event import CellEvent, CellType, CellDefine
+from .link_composer import LinkComposer
 
 
 # =========================  color styling constant ================================ #

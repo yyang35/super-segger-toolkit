@@ -1,4 +1,3 @@
-from cell import Cell
 import pandas as pd
 import numpy as np
 import glob
@@ -11,7 +10,8 @@ import sys
 import cv2
 from natsort import natsorted
 
-import cells_extractor
+from . import cells_extractor 
+from .cell import Cell
 
 
 class LinkComposer:

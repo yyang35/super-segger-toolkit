@@ -1,6 +1,6 @@
 from enum import Enum
 from networkx import Graph
-from cell import Cell
+from .cell import Cell
 from typing import Set
 from typing import Iterable
 

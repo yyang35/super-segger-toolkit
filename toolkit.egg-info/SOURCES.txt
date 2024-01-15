@@ -8,6 +8,7 @@ superseggertoolkit/cells_extractor.py
 superseggertoolkit/formator.py
 superseggertoolkit/link_algorithm.py
 superseggertoolkit/link_composer.py
+superseggertoolkit/setup.py
 superseggertoolkit/visualizer.py
 toolkit.egg-info/PKG-INFO
 toolkit.egg-info/SOURCES.txt
