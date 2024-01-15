@@ -1,0 +1,15 @@
+README.md
+setup.py
+superseggertoolkit/__init__.py
+superseggertoolkit/analyzer.py
+superseggertoolkit/cell.py
+superseggertoolkit/cell_event.py
+superseggertoolkit/cells_extractor.py
+superseggertoolkit/formator.py
+superseggertoolkit/link_algorithm.py
+superseggertoolkit/link_composer.py
+superseggertoolkit/visualizer.py
+toolkit.egg-info/PKG-INFO
+toolkit.egg-info/SOURCES.txt
+toolkit.egg-info/dependency_links.txt
+toolkit.egg-info/top_level.txt

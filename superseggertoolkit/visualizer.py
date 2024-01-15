@@ -242,7 +242,7 @@ def get_graph_stats_text(G):
 
 
 
-# ============================== phase/fluorescent video stetch related ================================== #
+# ============================== phase/fluorescent video stretch related ================================== #
 
 # for images visualization, label the cell label and it's type 
 # this cell label only for reability and represent relative relationship, no strict label be applied
