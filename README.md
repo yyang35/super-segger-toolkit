@@ -41,10 +41,6 @@ check different label demo for more information.
 
 - Cell Event Tracking labeling
 ![Image 1](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/event_label.gif) 
-- Ancient/Generation Tracking labeling
-![Image 2](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/generation_label.gif) 
-- Error/Linking Difference Tracking labeling
-![Image 3](https://github.com/yyang35/super-segger-toolkit/blob/main/readme_media/warning_label.gif) 
 
 
 2. **Cross time phase video compasion:**
